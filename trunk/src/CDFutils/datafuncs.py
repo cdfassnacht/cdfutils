@@ -84,7 +84,7 @@ def sigclip(indata, nsig=3., mask=None, verbose=False):
 
 # ===========================================================================
 #
-# Start of Data1d class
+# Start of DataGen class
 #
 # ===========================================================================
 
@@ -122,7 +122,7 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def __init__(self, x, y, var=None, names=None):
+    def __init__(self, x, y, var=None, names=None, debug=False):
         """
 
         Reads in the data, which can be expressed as y = y(x).
@@ -135,6 +135,10 @@ class Data1d(Table):
                 names = ['x', 'y']
             else:
                 names = ['x', 'y', 'var']
+        if(debug):
+            print(names)
+            print('Length of x vector: %d' % x.size)
+            print('Length of y vector: %d' % y.size)
 
         """ Link to the inherited class """
         if var is None:
