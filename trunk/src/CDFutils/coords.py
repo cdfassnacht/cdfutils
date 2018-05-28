@@ -7,10 +7,111 @@ functions that act as wrappers for functions in MWA's wcs.py
 
 import numpy as np
 from math import pi, sin, cos, atan2, sqrt
+from astropy import wcs
+from astropy import units as u
+try:
+    from astropy.io import fits as pf
+except ImportError:
+    import pyfits as pf
+try:
+    from astropy.coordinates import SkyCoord
+except ImportError:
+    from astropy.coordinates import ICRS as SkyCoord
+
+"""
+NB: imfuncs is only imported for one call to open_fits.
+Consider making a new fitsfuncs file in the CDFutils repo to hold open_fits
+ (and perhaps other future methods)
+"""
 try:
     from SpecIm import imfuncs as imf
 except ImportError:
     import imfuncs as imf
+
+# -----------------------------------------------------------------------
+
+
+def radec_to_skycoord(ra, dec):
+    """
+    Converts a (RA, dec) pair into the astropy.coordinates SkyCoord
+    format
+
+    Required inputs:
+     ra  - RA in one of three formats:
+            Decimal degrees: ddd.ddddddd  (as many significant figures
+              as desired)
+            Sexigesimal:     hh mm ss.sss (as many significant figures
+              as desired)
+            Sexigesimal:     hh:mm:ss.sss (as many significant figures
+              as desired)
+     dec - Dec in one of three formats:
+            Decimal degrees: sddd.ddddddd, where "s" is + or -
+            Sexigesimal:     sdd mm ss.sss (as many significant figures
+               as desired)
+            Sexigesimal:     sdd:mm:ss.sss (as many significant figures
+               as desired)
+    """
+
+    """ Get RA format """
+    if type(ra) == float or type(ra) == np.float32 or \
+            type(ra) == np.float64:
+        rafmt = u.deg
+    else:
+        rafmt = u.hourangle
+
+    """ Dec format is always degrees, even if in Sexigesimal format """
+    decfmt = u.deg
+
+    """ Do the conversion """
+    radec = SkyCoord(ra, dec, unit=(rafmt, decfmt))
+    return radec
+
+# -----------------------------------------------------------------------
+
+
+def make_header(radec, pixscale, nx, ny=None, rot=None):
+    """
+
+    Makes a header with wcs information.
+
+    Inputs:
+      radec    - The desired (RA, Dec) pair to be put into the CRVAL
+                  keywords.
+                  NOTE: This should be in the SkyCoord format defined in
+                   astropy.coordinates.  To convert a "normal" pair of
+                   numbers / sexigesimal strings to SkyCoord format, use
+                   the radec_to_skycoord method from coords.py in CDFutils
+      pixscale - Desired pixel scale in arcsec/pix
+      nx       - image size along the x-axis --or-- if the image is square
+                   (indicated by ny=None) then this is also the y-axis size
+      ny       - [OPTIONAL] y-axis size, if different from the x-axis size
+                   ny=None means that the two axes have the same size
+      rot      - [OPTIONAL] desired rotation angle, in degrees E of N.
+                   NOT IMPLEMENTED YET
+    """
+
+    """ Create a blank 2d WCS container """
+    w = wcs.WCS(naxis=2)
+
+    """ Get the image size and central pixel """
+    cp1 = nx / 2.
+    if ny is None:
+        cp2 = cp1
+    else:
+        cp2 = ny / 2.
+
+    """ Fill it in with appropriate values and save it """
+    px = pixscale / 3600.
+    w.wcs.crpix = [cp1, cp2]
+    w.wcs.crval = [radec.ra.degree, radec.dec.degree]
+    w.wcs.cdelt = [(-1.*px), px]
+    w.wcs.ctype = ['RA---TAN', 'DEC--TAN']
+    w.wcs.equinox = 2000.
+    # self.subim_wcs = w
+
+    """ Convert to a fits header format """
+    hdr = w.to_header()
+    return hdr, w
 
 # -----------------------------------------------------------------------
 
