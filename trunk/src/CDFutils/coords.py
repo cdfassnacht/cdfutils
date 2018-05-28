@@ -74,7 +74,7 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
 
     Makes a header with wcs information.
 
-    Inputs:
+    Required Inputs:
       radec    - The desired (RA, Dec) pair to be put into the CRVAL
                   keywords.
                   NOTE: This should be in the SkyCoord format defined in
@@ -84,10 +84,12 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
       pixscale - Desired pixel scale in arcsec/pix
       nx       - image size along the x-axis --or-- if the image is square
                    (indicated by ny=None) then this is also the y-axis size
-      ny       - [OPTIONAL] y-axis size, if different from the x-axis size
+
+    Optional Inputs:
+      ny       - y-axis size, if different from the x-axis size
                    ny=None means that the two axes have the same size
-      rot      - [OPTIONAL] desired rotation angle, in degrees E of N.
-                   NOT IMPLEMENTED YET
+      rot      - desired rotation angle, in DEGREES E of N.
+
     """
 
     """ Create a blank 2d WCS container """
@@ -100,14 +102,33 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
     else:
         cp2 = ny / 2.
 
-    """ Fill it in with appropriate values and save it """
+    """ Fill the WCS header in with appropriate values and save it """
     px = pixscale / 3600.
     w.wcs.crpix = [cp1, cp2]
     w.wcs.crval = [radec.ra.degree, radec.dec.degree]
     w.wcs.cdelt = [(-1.*px), px]
     w.wcs.ctype = ['RA---TAN', 'DEC--TAN']
     w.wcs.equinox = 2000.
-    # self.subim_wcs = w
+
+    """
+    Implement the rotation via the PC matrix, which will have elements:
+          cos(theta)    sin(theta)
+         -sin(theta)    cos(theta)
+     where theta is the angle north through east.
+    If you are more used to the CD matrix format, there is a simple expression
+     relating the two:
+
+         CD = pixscale * PC
+
+     assuming that the pixel scales are the same along the two axes.
+    """
+    if rot is not None:
+        thetarad = theta * pi
+        pc11 = cos(theta)
+        pc22 = pc11
+        pc12 = sin(theta)
+        pc21 = -pc12
+        w.wcs.pc = np.array([[pc11, pc12], [pc21, pc22]])
 
     """ Convert to a fits header format """
     hdr = w.to_header()
