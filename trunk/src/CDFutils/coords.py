@@ -6,7 +6,7 @@ functions that act as wrappers for functions in MWA's wcs.py
 """
 
 import numpy as np
-from math import pi, sin, cos, atan2, sqrt
+from math import pi, sin, cos, atan, atan2, sqrt
 from astropy import wcs
 from astropy import units as u
 try:
@@ -27,6 +27,113 @@ try:
     from SpecIm import imfuncs as imf
 except ImportError:
     import imfuncs as imf
+
+# ---------------------------------------------------------------------------
+
+class fileWCS(object):
+    """
+
+    Container for WCS information and some associated variables that are
+    useful for doing calculations on and selection from astromical imaging
+    data that have been stored in a fits file
+    """
+
+    def __init__(self, hdr, verbose=True):
+        """
+        Takes the input fits header (hdr) and extracts useful WCS information
+         from it, if that the information is present.  This is essentially
+         a simple instatiation of a astropy.wcs.WCS class, but it adds a few
+         additional variables that can be derived from the WCS class.
+
+        Inputs:
+         hdr     - fits header that may contain WCS information
+         verbose - if True (the default) print out possibly useful messages
+
+        """
+
+        """ Initialize some variables """
+        self.wcsinfo = None
+        self.found_wcs = False
+        self.radec = None
+        self.pixscale = None
+        self.impa = None
+
+        """ Get the WCS information out of the header"""
+        try:
+            self.wcsinfo = wcs.WCS(hdr)
+        except:
+            if verbose:
+                print('get_wcs: No WCS information in image header')
+            self.found_wcs = False
+            return
+
+        """
+        Make sure that the WCS information is actually WCS-like and not,
+        for example, pixel-based
+        """
+
+        imwcs = self.wcsinfo.wcs
+        rafound = False
+        decfound = False
+        count = 0
+        for ct in imwcs.ctype:
+            if ct[0:2] == 'RA':
+                rafound = True
+                raax = count
+                rakey = 'naxis%d' % (count + 1)
+            if ct[0:3] == 'DEC':
+                decfound = True
+                decax = count
+                deckey = 'naxis%d' % (count + 1)
+            count += 1
+        if rafound is False or decfound is False:
+            if verbose:
+                print('No valid WCS information in image header')
+                print(' CTYPE keys are not RA/DEC')
+            self.found_wcs = False
+            return
+
+        """ Get the RA and Dec of the center of the image """
+        xcent = hdr[rakey] / 2.
+        ycent = hdr[deckey] / 2.
+        imcent = np.ones((1, hdr['naxis']))
+        imcent[0, raax] = xcent
+        imcent[0, decax] = ycent
+        imcentradec = self.wcsinfo.wcs_pix2world(imcent, 1)
+        self.radec = radec_to_skycoord(imcentradec[0, raax],
+                                       imcentradec[0, decax])
+
+        """ Calculate the pixel scale and image PA (E of N) """
+        self.found_wcs = True
+        w = self.wcsinfo.wcs
+        rad2deg = 180. / pi
+        if imwcs.has_cd():
+            if verbose:
+                print('Using CD matrix to determine pixel scale')
+            cdelt1, cdelt2, crot = cdmatrix_to_rscale(w.cd, raax, decax)
+            self.pixscale = 1800. * (abs(cdelt1) + abs(cdelt2)) # 3600./2.
+            self.impa = crot * rad2deg
+        elif imwcs.has_pc():
+            if verbose:
+                print('Using CDELT to determine pixel scale')
+            self.pixscale = 1800. * (abs(w.cdelt[raax]) + abs(w.cdelt[decax]))
+            self.impa = atan(-1. * w.pc[raax, decax] /
+                              w.pc[decax, decax]) * rad2deg
+        elif isinstance(imwcs.cdelt, np.ndarray):
+            self.pixscale = abs(w.cdelt[raax]) * 3600.
+        else:
+            print 'Warning: no WCS info in header'
+            self.found_wcs = False
+
+        """ Report results if desired """
+        if self.found_wcs and verbose:
+            print('Rough WCS info under assumption of no skew')
+            print('--------------------------------------------------')
+            print('Pixel scale: %7.3f arcsec/pix' % self.pixscale)
+            print('Instrument FOV (arcsec): %7.1f %7.1f' %
+                  (self.pixscale * hdr[rakey], self.pixscale * hdr[deckey]))
+            print('Image position angle (E of N): %+7.2f' % self.impa)
+
 
 # -----------------------------------------------------------------------
 
@@ -123,10 +230,10 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
      assuming that the pixel scales are the same along the two axes.
     """
     if rot is not None:
-        thetarad = theta * pi
-        pc11 = cos(theta)
+        rotrad = rot * pi
+        pc11 = cos(rot)
         pc22 = pc11
-        pc12 = sin(theta)
+        pc12 = sin(rot)
         pc21 = -pc12
         w.wcs.pc = np.array([[pc11, pc12], [pc21, pc22]])
 
@@ -169,21 +276,35 @@ def rscale_to_cdmatrix(pixscale, rot, pixscale2=0.0, verbose=True):
     cdmatx[1, 0] = -1.0 * pixscale * sin(rot)
     cdmatx[0, 1] = -1.0 * pixscale2 * sin(rot)
     cdmatx[1, 1] = pixscale2 * cos(rot)
-    """ Convert cd matrix to degrees and return"""
 
+    """ Convert cd matrix to degrees and return"""
     cdmatx /= 3600.
     return cdmatx
 
 # -----------------------------------------------------------------------
 
 
-def cdmatrix_to_rscale(cdmatrix, verbose=True):
+def cdmatrix_to_rscale(cdmatrix, raax=0, decax=1, verbose=True):
     """
     Converts a CD matrix from a fits header to pixel scales and rotations.
 
     Inputs:
-      cdmatrix - the CD matrix, as a numpy array:
+      cdmatrix - the CD matrix, as a numpy array.  For a standard
+                 two-dimensional image, the CD matrix that we care about
+                 will be constructed from the fits header keywords as
                   [[CD1_1, CD1_2], [CD2_1, CD2_2]]
+                 This would correspond to the default values for the 
+                  (zero-indexed) raax (default=0) and decax (default=1)
+                 However, if the input file has more than two dimensions, then
+                  the RA axis is not always the first and the Dec axis is
+                  not always the second.  Some 2d images also for some reason
+                  have the two axes reversed.  Therefore, use the raax and
+                  decax (zero-indexed) are used to indicate which axes 
+                  correspond to RA and Dec.
+      raax     - index for the RA axis.  The default, raax=1, means that CD1_1
+                  is associated with RA
+      decax    - index for the Dec axis.  The default, decax=1, means that
+                  CD2_2 is associated with Dec
       verbose  - set to True (the default) for verbose output
     """
 
@@ -203,21 +324,25 @@ def cdmatrix_to_rscale(cdmatrix, verbose=True):
         if verbose:
             print "  WARNING: cdmatrix_to rscale"
             print "    Astrometry is for a right-handed coordinate system."
-    if(verbose):
-        print cdsgn
-
-    """ Calculate the rotation """
-    crota2 = atan2(-1.0 * cdmatrix[1, 0], cdmatrix[1, 1])
 
     """
     Now convert CDn_m headers into pixel scales, expresess as CDELTn values.
-    Use the following:
+    Use the following (under the default assumption of axis assignments),
+    which is taken from a fits WCS document (fitswcs_draft.pdf) by
+    Hanisch and Wells [Look for a published version!]:
+      sign(CDELT1*CDELT2) = sign(CD1_1 * CD2_2 - CD1_2 * CD2_1)
+         This is determined as cdsgn above 
       CDELT1 = sqrt(CD1_1^2 + CD2_1^2)
-      CDELT2 = sqrt(CD1_2^2 + CD2_2^2).
+      CDELT2 = sqrt(CD1_2^2 + CD2_2^2)
+      CROTA2 = arctan(sign * CD1_2 / CD2_2)
+
+    NOTE: CROTA2 is deprecated as a fits keyword, but it is the value of
+     the image PA
     """
 
-    cdelt1 = -1.0*sqrt(cdmatrix[0, 0]**2 + cdmatrix[0, 1]**2)
-    cdelt2 = sqrt(cdmatrix[1, 0]**2 + cdmatrix[1, 1]**2)
+    cdelt1 = cdsgn * sqrt(cdmatrix[raax, raax]**2 + cdmatrix[raax, decax]**2)
+    cdelt2 = sqrt(cdmatrix[decax, raax]**2 + cdmatrix[decax, decax]**2)
+    crota2 = atan(cdsgn * cdmatrix[raax, decax] / cdmatrix[decax, decax])
 
     """ Return the calculated values """
     return cdelt1, cdelt2, crota2
