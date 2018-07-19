@@ -18,17 +18,8 @@ try:
 except ImportError:
     from astropy.coordinates import ICRS as SkyCoord
 
-"""
-NB: imfuncs is only imported for one call to open_fits.
-Consider making a new fitsfuncs file in the CDFutils repo to hold open_fits
- (and perhaps other future methods)
-"""
-try:
-    from SpecIm import imfuncs as imf
-except ImportError:
-    import imfuncs as imf
-
 # ---------------------------------------------------------------------------
+
 
 class fileWCS(object):
     """
@@ -65,7 +56,7 @@ class fileWCS(object):
             if verbose:
                 print('get_wcs: No WCS information in image header')
             self.found_wcs = False
-            return
+            raise KeyError
 
         """
         Make sure that the WCS information is actually WCS-like and not,
@@ -91,7 +82,7 @@ class fileWCS(object):
                 print('No valid WCS information in image header')
                 print(' CTYPE keys are not RA/DEC')
             self.found_wcs = False
-            return
+            raise KeyError
 
         """ Get the RA and Dec of the center of the image """
         xcent = hdr[rakey] / 2.
@@ -111,7 +102,7 @@ class fileWCS(object):
             if verbose:
                 print('Using CD matrix to determine pixel scale')
             cdelt1, cdelt2, crot = cdmatrix_to_rscale(w.cd, raax, decax)
-            self.pixscale = 1800. * (abs(cdelt1) + abs(cdelt2)) # 3600./2.
+            self.pixscale = 1800. * (abs(cdelt1) + abs(cdelt2))  # 3600./2.
             self.impa = crot * rad2deg
         elif imwcs.has_pc():
             if verbose:
@@ -231,9 +222,9 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
     """
     if rot is not None:
         rotrad = rot * pi
-        pc11 = cos(rot)
+        pc11 = cos(rotrad)
         pc22 = pc11
-        pc12 = sin(rot)
+        pc12 = sin(rotrad)
         pc21 = -pc12
         w.wcs.pc = np.array([[pc11, pc12], [pc21, pc22]])
 
@@ -293,13 +284,13 @@ def cdmatrix_to_rscale(cdmatrix, raax=0, decax=1, verbose=True):
                  two-dimensional image, the CD matrix that we care about
                  will be constructed from the fits header keywords as
                   [[CD1_1, CD1_2], [CD2_1, CD2_2]]
-                 This would correspond to the default values for the 
+                 This would correspond to the default values for the
                   (zero-indexed) raax (default=0) and decax (default=1)
                  However, if the input file has more than two dimensions, then
                   the RA axis is not always the first and the Dec axis is
                   not always the second.  Some 2d images also for some reason
                   have the two axes reversed.  Therefore, use the raax and
-                  decax (zero-indexed) are used to indicate which axes 
+                  decax (zero-indexed) are used to indicate which axes
                   correspond to RA and Dec.
       raax     - index for the RA axis.  The default, raax=1, means that CD1_1
                   is associated with RA
@@ -331,7 +322,7 @@ def cdmatrix_to_rscale(cdmatrix, raax=0, decax=1, verbose=True):
     which is taken from a fits WCS document (fitswcs_draft.pdf) by
     Hanisch and Wells [Look for a published version!]:
       sign(CDELT1*CDELT2) = sign(CD1_1 * CD2_2 - CD1_2 * CD2_1)
-         This is determined as cdsgn above 
+         This is determined as cdsgn above
       CDELT1 = sqrt(CD1_1^2 + CD2_1^2)
       CDELT2 = sqrt(CD1_2^2 + CD2_2^2)
       CROTA2 = arctan(sign * CD1_2 / CD2_2)
@@ -370,7 +361,7 @@ def update_cdmatrix(fitsfile, pixscale, rot, pixscale2=0.0,
     """
 
     """ Open the input file """
-    hdulist = imf.open_fits(fitsfile, 'update')
+    hdulist = pf.open(fitsfile, mode='update')
     hdr = hdulist[hext].header
 
     """ Generate a CD matrix based on the inputs """
