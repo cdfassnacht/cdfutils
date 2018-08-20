@@ -3,6 +3,7 @@ A collection of fairly generic code for handling data
 """
 
 import numpy as np
+from scipy.ndimage import filters
 from matplotlib import pyplot as plt
 from astropy.table import Table
 
@@ -246,3 +247,34 @@ class Data1d(Table):
         """
         print dpoly
         return dpoly, fity
+
+    # -----------------------------------------------------------------------
+
+    def smooth_boxcar(self, filtwidth, doplot=True, outfile=None,
+                      color='b', title='default',
+                      xlabel='Wavelength (Angstroms)'):
+        """
+        Does a boxcar smooth of the spectrum.
+        The default is to do inverse variance weighting, using the variance
+         spectrum if it exists.
+        The other default is not to write out an output file.  This can be
+        changed by setting the outfile parameter.
+        """
+
+        """ Set the weighting """
+        if self.var is not None:
+            print 'Weighting by the inverse variance'
+            wht = 1.0 / self.var
+        else:
+            print 'Uniform weighting'
+            wht = 0.0 * self.y + 1.0
+
+        """ Smooth the spectrum and store results in smoflux and smovar """
+        yin = wht * self.y
+        smowht = filters.uniform_filter(wht, filtwidth)
+        self.ysmooth = filters.uniform_filter(yin, filtwidth)
+        self.ysmooth /= smowht
+        if self.var is not None:
+            self.varsmooth = 1.0 / (filtwidth * smowht)
+
+
