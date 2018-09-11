@@ -250,9 +250,7 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def smooth_boxcar(self, filtwidth, doplot=True, outfile=None,
-                      color='b', title='default',
-                      xlabel='Wavelength (Angstroms)'):
+    def smooth_boxcar(self, filtwidth):
         """
         Does a boxcar smooth of the spectrum.
         The default is to do inverse variance weighting, using the variance

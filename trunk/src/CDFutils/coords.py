@@ -54,7 +54,7 @@ class fileWCS(object):
             self.wcsinfo = wcs.WCS(hdr)
         except:
             if verbose:
-                print('get_wcs: No WCS information in image header')
+                print('No WCS information in image header')
             self.found_wcs = False
             raise KeyError
 
@@ -118,7 +118,8 @@ class fileWCS(object):
 
         """ Report results if desired """
         if self.found_wcs and verbose:
-            print('Rough WCS info under assumption of no skew')
+            print('')
+            print('Rough WCS info')
             print('--------------------------------------------------')
             print('Pixel scale: %7.3f arcsec/pix' % self.pixscale)
             print('Instrument FOV (arcsec): %7.1f %7.1f' %
