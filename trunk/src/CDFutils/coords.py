@@ -71,11 +71,13 @@ class fileWCS(object):
             if ct[0:2] == 'RA':
                 rafound = True
                 raax = count
-                rakey = 'naxis%d' % (count + 1)
+                self.raaxis = raax + 1
+                rakey = 'naxis%d' % self.raaxis
             if ct[0:3] == 'DEC':
                 decfound = True
                 decax = count
-                deckey = 'naxis%d' % (count + 1)
+                self.decaxis = decax + 1
+                deckey = 'naxis%d' % self.decaxis
             count += 1
         if rafound is False or decfound is False:
             if verbose:
