@@ -35,7 +35,7 @@ except:
 verstr = "unknown"
 try:
     parentdir = os.getcwd()+'/'
-    verstrline = open(parentdir+'/src/CDFutils/_version.py', "rt").read()
+    verstrline = open(parentdir+'CDFutils/_version.py', "rt").read()
 except EnvironmentError:
     pass # Okay, there is no version file.
 else:
@@ -44,7 +44,7 @@ else:
     if mo:
         verstr = mo.group(1)
     else:
-        raise RuntimeError("unable to find version in " + parentdir + "+src/CDFutils/_version.py")
+        raise RuntimeError("unable to find version in " + parentdir + "CDFutils/_version.py")
 
 
 setup(
@@ -59,6 +59,6 @@ setup(
     #long_description = open('README.txt').read(),
     requires = ['numpy','astropy','matplotlib'],
     packages = ['CDFutils'],
-    package_dir = {'':'src'}
+    #package_dir = {'':'src'}
     #package_data = {'SpecIm' : ['Data/*fits']}
 )
