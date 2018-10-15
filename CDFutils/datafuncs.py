@@ -3,9 +3,11 @@ A collection of fairly generic code for handling data
 """
 
 import numpy as np
+from scipy import optimize
 from scipy.ndimage import filters
 from matplotlib import pyplot as plt
 from astropy.table import Table
+from astropy.modeling import models, fitting
 
 # ---------------------------------------------------------------------------
 
@@ -157,6 +159,37 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
+    def smooth_boxcar(self, filtwidth):
+        """
+        Does a boxcar smooth of the spectrum.
+        The default is to do inverse variance weighting, using the variance
+         spectrum if it exists.
+        The other default is not to write out an output file.  This can be
+        changed by setting the outfile parameter.
+        """
+
+        """ Set the weighting """
+        if self.var is not None:
+            print('Weighting by the inverse variance')
+            wht = 1.0 / self.var
+        else:
+            print('Uniform weighting')
+            wht = 0.0 * self.y + 1.0
+
+        """ Smooth the spectrum and variance spectrum """
+        yin = wht * self.y
+        smowht = filters.uniform_filter(wht, filtwidth)
+        ysmooth = filters.uniform_filter(yin, filtwidth)
+        ysmooth /= smowht
+        if self.var is not None:
+            varsmooth = 1.0 / (filtwidth * smowht)
+        else:
+            varsmooth = None
+
+        return ysmooth, varsmooth
+
+    # -----------------------------------------------------------------------
+
     def fit_poly(self, fitorder, fitrange=None, nsig=3.0, y0=None, doplot=True,
                  markformat='bo', xlabel='x', ylabel='y', title=None):
         """
@@ -250,29 +283,267 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def smooth_boxcar(self, filtwidth):
+    def fit_gauss(self, bgorder=0, smo=5, gtype='em'):
         """
-        Does a boxcar smooth of the spectrum.
-        The default is to do inverse variance weighting, using the variance
-         spectrum if it exists.
-        The other default is not to write out an output file.  This can be
-        changed by setting the outfile parameter.
+        Fits a Gaussian plus a background to the data.  The background
+         is represented by a polynomial of degree bgorder.  The default value,
+         bgorder=0, gives a constant background.
+        The data are modeled using the astropy modeling package.
         """
 
-        """ Set the weighting """
-        if self.var is not None:
-            print 'Weighting by the inverse variance'
-            wht = 1.0 / self.var
+        """
+        Do a temporary smoothing of the data to reduce the effect of noise
+         on the initial guesses
+        """
+        tmpsmooth, junk = self.smooth_boxcar(smo)
+
+        """
+        The default model for the background is just a constant
+        Do a sigma clipping to estimate the base level for the initial
+         guess.
+        """
+        base, tmp = sigclip(tmpsmooth)
+
+        """
+        Get the initial guesses for the Gaussian from the smoothed curve
+        """
+        if gtype == 'abs':
+            amp0 = tmpsmooth.min() - base
+            mu0 = self.x[np.argmin(tmpsmooth)]
         else:
-            print 'Uniform weighting'
-            wht = 0.0 * self.y + 1.0
+            amp0 = tmpsmooth.max() - base
+            mu0 = self.x[np.argmax(tmpsmooth)]
+        sig0 = 3.5
 
-        """ Smooth the spectrum and store results in smoflux and smovar """
-        yin = wht * self.y
-        smowht = filters.uniform_filter(wht, filtwidth)
-        self.ysmooth = filters.uniform_filter(yin, filtwidth)
-        self.ysmooth /= smowht
-        if self.var is not None:
-            self.varsmooth = 1.0 / (filtwidth * smowht)
+        """
+        Create the initial-guess model
+        NOTE: Should probably add bounds
+        """
+        g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
+        p = models.Polynomial1D(degree=bgorder, c0=base)
+        m_init = g + p
 
+        """ Fit """
+        fit = fitting.LevMarLSQFitter()
+        mod = fit(m_init, self.x, self.y)
 
+        """ Clean up and return best-fit model """
+        del tmpsmooth
+        return mod
+
+    # -----------------------------------------------------------------------
+
+    def _make_gauss(self, p):
+        """
+
+        Creates a model comprised of one or more Gaussian profiles plus a
+        (for now) constant background.
+        NOTE: the only oddity is that, if there are more than one Gaussian in
+        the profile, then the "mu" term for the subsequent Gaussians
+        (i.e., p[4], p[7], ..) are actually _offsets_ between the mean of the
+        subsequent Gaussian and the mean of the first.  For example,
+        mu_2 = p[0] + p[4]
+
+        Inputs:
+          p  - The parameter values.  The length of this vector will be 1+3*n,
+               where n>=1, for one constant background parameter (p[0]) plus
+               one or more Gaussian parameters, which come in sets of three.
+               Thus, p can be decomposed as follows:
+                 p[0] - background: required
+                 p[1] - mu_1: required
+                 p[2] - sigma_1: required
+                 p[3] - amplitude_1: required
+                 p[4] - offset between mu_2 and mu_1: optional
+                 p[5] - sigma_2: optional
+                 p[6] - amplitude_2: optional
+                 ... etc. for as many Gaussians are used to construct the
+                   profile
+        """
+
+        """ Calculate the number of Gaussians in the model """
+        ngauss = int((p.size-1)/3)
+        if p.size - (ngauss*3+1) != 0:
+            print('')
+            print('ERROR: Gaussian model contains the incorrect number of'
+                  'parameters')
+            print('')
+            return np.nan
+
+        """ Calculate y_mod using current parameter values """
+        ymod = np.zeros(self.x.size) + p[0]
+        for i in range(ngauss):
+            ind = i*3+1
+            if i == 0:
+                mu = p[ind]
+            else:
+                mu = p[1] + p[ind]
+
+            ymod += p[ind+2] * np.exp(-0.5 * ((self.x - mu)/p[ind+1])**2)
+
+        return ymod
+
+    # -----------------------------------------------------------------------
+
+    def _checkmod_gauss(self, p, p_init, fitind):
+        """
+
+        Compares the data to the model.  The model consists of at least one
+        gaussian plus a constant background and is created by a call to
+        make_gauss.
+        Thus the comparison is between ymod(x) and y, where the latter is the
+        measured quantity.
+
+        NOTE: the only oddity in the model is that, if there are more than
+        one Gaussian in the profile, then the "mu" term for the subsequent
+        Gaussians (i.e., p[4], p[7], ..) are actually _offsets_ between the
+        mean of the subsequent Gaussian and the mean of the first.  For
+        example, mu_2 = p[0] + p[4]
+
+        Inputs:
+          p  - The parameter values.  The length of this vector will be 1+3*n,
+               where n>=1, for one constant background parameter (p[0]) plus
+               one or more Gaussian parameters, which come in sets of three.
+               Thus, p can be decomposed as follows:
+                 p[0] - background: required
+                 p[1] - mu_1: required
+                 p[2] - sigma_1: required
+                 p[3] - amplitude_1: required
+                 p[4] - offset between mu_2 and mu_1: optional
+                 p[5] - sigma_2: optional
+                 p[6] - amplitude_2: optional
+                 ... etc. for as many Gaussians are used to construct the
+                 profile
+        """
+
+        """
+        Create the full list of model parameters by combining the fitted
+        parameters and the fixed parameters
+        """
+        pfull = p_init.copy()
+        pfull[fitind] = p
+
+        """
+        Compute the difference between model and real values
+        """
+        ymod = self._make_gauss(pfull)
+        diff = self.y - ymod
+
+        return diff
+
+    # -----------------------------------------------------------------------
+
+    def fit_gauss_old(self, init=None, fix=None, ngauss=1, verbose=True):
+        """
+
+        Old routine for fitting a gaussian plus background.  This approach
+        uses the scipy.optimize.leastsq routine rather than the astropy
+        modeling routines.
+
+        """
+
+        """
+        Set up the container for the initial guesses for the parameter values
+        """
+        nparam = 3*ngauss + 1
+        p_init = np.zeros(nparam)
+
+        """
+        Put default choices, which may be overridden, into p_init
+        """
+        p_init[0] = np.median(self.y, axis=None)
+        for i in range(ngauss):
+            """
+            In this loop the parameters are set as follows:
+              p_init[ind] is either mu (if i==0) or an offset from p_init[1]
+              p_init[ind+1] is sigma
+              p_init[ind+2] is amplitude
+            """
+            ind = 3*i + 1
+            if i == 0:
+                tmp = self.y.argsort()
+                p_init[ind] = 1.0 * tmp[tmp.shape[0]-1]
+            else:
+                p_init[ind] = 5. * i * (-1.)**(i+1)
+            p_init[ind+1] = 3.
+            p_init[ind+2] = self.y.max() - p_init[0]
+
+        """
+        Override the default values if init has been set.
+        NOTE: the init parameter must be an array (or list) of length nparam
+         otherwise the method will quit
+        NOTE: A value of -999 in init means keep the default value
+        """
+        if init is not None:
+            if len(init) != nparam:
+                print ''
+                print('ERROR: locate_trace -- init parameter must have'
+                      'length %d' % nparam)
+                print('  (since ngauss=%d ==> nparam= 3*%d +1)' %
+                      (ngauss, ngauss))
+                print ''
+                return np.nan
+            for j in range(nparam):
+                if init[j] > -998.:
+                    p_init[j] = init[j]
+
+        """
+        Set up which parameters are fixed based on the fix parameter
+        The default value (fix=None) means that all of the parameters are
+         varied in the fitting process
+        """
+        fixstr = np.zeros(nparam, dtype='S3')
+        if fix is None:
+            fixvec = np.zeros(nparam)
+        else:
+            fixvec = np.atleast_1d(fix)
+            if fixvec.size != nparam:
+                print ''
+                print('ERROR: locate_trace - fix parameter must have length %d'
+                      % nparam)
+                print '  (since ngauss=%d ==> nparam= 3*%d +1)' % \
+                    (ngauss, ngauss)
+                print ''
+                return np.nan
+            fixstr[fixvec == 1] = 'Yes'
+        fitmask = fixvec == 0
+        fitind = np.arange(nparam)[fitmask]
+
+        """ Fit a Gaussian plus a background to the compressed spectrum """
+        mf = 100000
+        p = p_init[fitmask]
+        p_fit, ier = optimize.leastsq(self._checkmod_gauss, p,
+                                      (p_init, fitind),
+                                      maxfev=mf)
+        """
+        Create the full parameter list for the fit by combining the fitted
+        parameters and the fixed parameters
+        """
+        p_out = p_init.copy()
+        p_out[fitind] = p_fit
+
+        """ Give results """
+        if(verbose):
+            print ""
+            print "Profile fit results"
+            print "-------------------"
+            print '                                        Held'
+            print 'Parameter          Init Value  fixed? Final Value'
+            print '--------------    ----------  ------ -----------'
+            print "background         %9.3f     %3s     %9.3f"      \
+                % (p_init[0], fixstr[0], p_out[0])
+            for i in range(ngauss):
+                ind = 3 * i + 1
+                j = i + 1
+                if i == 0:
+                    mustr = 'mu_1'
+                else:
+                    mustr = 'offset_%d' % j
+                print "%-9s          %9.3f     %3s     %9.3f" \
+                    % (mustr, p_init[ind], fixstr[ind], p_out[ind])
+                print "sigma_%d            %9.3f    %3s    %9.3f" \
+                    % (j, p_init[ind+1], fixstr[ind+1], p_out[ind+1])
+                print "amp_%d              %9.3f    %3s    %9.3f" \
+                    % (j, p_init[ind+2], fixstr[ind+2], p_out[ind+2])
+            print ""
+
+        return p_out
