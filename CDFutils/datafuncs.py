@@ -159,7 +159,7 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def smooth_boxcar(self, filtwidth):
+    def smooth_boxcar(self, filtwidth, verbose=True):
         """
         Does a boxcar smooth of the spectrum.
         The default is to do inverse variance weighting, using the variance
@@ -170,10 +170,12 @@ class Data1d(Table):
 
         """ Set the weighting """
         if self.var is not None:
-            print('Weighting by the inverse variance')
+            if verbose:
+                print('Weighting by the inverse variance')
             wht = 1.0 / self.var
         else:
-            print('Uniform weighting')
+            if verbose:
+                print('Uniform weighting')
             wht = 0.0 * self.y + 1.0
 
         """ Smooth the spectrum and variance spectrum """
@@ -283,7 +285,7 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def fit_gauss(self, bgorder=0, smo=5, gtype='em'):
+    def fit_gauss(self, bgorder=0, smo=5, gtype='em', verbose=True):
         """
         Fits a Gaussian plus a background to the data.  The background
          is represented by a polynomial of degree bgorder.  The default value,
@@ -295,7 +297,7 @@ class Data1d(Table):
         Do a temporary smoothing of the data to reduce the effect of noise
          on the initial guesses
         """
-        tmpsmooth, junk = self.smooth_boxcar(smo)
+        tmpsmooth, junk = self.smooth_boxcar(smo, verbose=False)
 
         """
         The default model for the background is just a constant
@@ -321,7 +323,7 @@ class Data1d(Table):
         """
         g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
         p = models.Polynomial1D(degree=bgorder, c0=base)
-        m_init = g + p
+        m_init = p + g
 
         """ Fit """
         fit = fitting.LevMarLSQFitter()
