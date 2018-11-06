@@ -285,7 +285,8 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def fit_gauss(self, bgorder=0, smo=5, gtype='em', verbose=True):
+    def fit_gauss(self, bgorder=0, smo=5, gtype='em', usevar=False,
+                  verbose=True):
         """
         Fits a Gaussian plus a background to the data.  The background
          is represented by a polynomial of degree bgorder.  The default value,
@@ -325,8 +326,31 @@ class Data1d(Table):
         p = models.Polynomial1D(degree=bgorder, c0=base)
         m_init = p + g
 
-        """ Fit """
-        fit = fitting.LevMarLSQFitter()
+        """ 
+        If variance-weighted fitting is requested, make sure that there
+        is a variance vector
+        """
+        if usevar:
+            if self.var is None:
+                raise KeyError('*** ERROR:  fit_gauss\n'
+                               'Fitting requested variance weighting but'
+                               ' no variance array found.')
+                
+
+        """
+        Do the fitting.
+        NOTE: The 'weights' for the fitter, if requested, are 1/RMS and NOT
+          1/var because that is what the astropy fitters expect.  
+          This must be because their figure of merit is set to
+            (y_data - y_mod)*weight
+          which is later squared somewhere, giving a real figure of merit
+            of  (y_data - y_mod)**2 / sigma**2   since weight = 1/sigma
+        """
+        if usevar:
+            rms = np.sqrt(self.var)
+            fit = fitting.LevMarLSQFitter(weights=1.0/rms)
+        else:
+            fit = fitting.LevMarLSQFitter()
         mod = fit(m_init, self.x, self.y)
 
         """ Clean up and return best-fit model """
