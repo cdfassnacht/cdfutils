@@ -374,8 +374,8 @@ class Data1d(Table):
           which is later squared somewhere, giving a real figure of merit
             of  (y_data - y_mod)**2 / sigma**2   since weight = 1/sigma
         """
-        fit = fitting.LevMarLSQFitter(weights=1.0/rms)
-        mod = fit(m_init, x, y)
+        fit = fitting.LevMarLSQFitter()
+        mod = fit(m_init, x, y, weights=1.0/rms)
 
         """ Clean up and return best-fit model """
         del tmpsmooth, rms, x, y
