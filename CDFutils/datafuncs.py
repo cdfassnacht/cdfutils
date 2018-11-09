@@ -286,12 +286,16 @@ class Data1d(Table):
     # -----------------------------------------------------------------------
 
     def fit_gauss(self, bgorder=0, smo=5, gtype='em', usevar=False,
+                  g_init=None, p_init=None, bounds=None, fitrange=None,
                   verbose=True):
         """
         Fits a Gaussian plus a background to the data.  The background
          is represented by a polynomial of degree bgorder.  The default value,
          bgorder=0, gives a constant background.
-        The data are modeled using the astropy modeling package.
+        The data are modeled using the astropy modeling package.  The 
+         parameters that are used for the two components are:
+           * Gaussian: amplitude, mean, stddev
+           * Background polynomial: c0, c1, ...  [up to bgorder]
         """
 
         """
@@ -335,7 +339,22 @@ class Data1d(Table):
                 raise KeyError('*** ERROR:  fit_gauss\n'
                                'Fitting requested variance weighting but'
                                ' no variance array found.')
+            else:
+                rms0 = np.sqrt(self.var)
+        else:
+            rms0 = np.ones(self.x.size)
+               
                 
+        """ Set the range over which to fit the data """
+        if fitrange is not None:
+            mask = (self.x > fitrange[0]) & (self.x < fitrange[1])
+            x = self.x[mask]
+            y = self.y[mask]
+            rms = rms0[mask]
+        else:
+            x = self.x.copy()
+            y = self.y.copy()
+            rms = rms0
 
         """
         Do the fitting.
@@ -346,15 +365,11 @@ class Data1d(Table):
           which is later squared somewhere, giving a real figure of merit
             of  (y_data - y_mod)**2 / sigma**2   since weight = 1/sigma
         """
-        if usevar:
-            rms = np.sqrt(self.var)
-            fit = fitting.LevMarLSQFitter(weights=1.0/rms)
-        else:
-            fit = fitting.LevMarLSQFitter()
-        mod = fit(m_init, self.x, self.y)
+        fit = fitting.LevMarLSQFitter(weights=1.0/rms)
+        mod = fit(m_init, x, y)
 
         """ Clean up and return best-fit model """
-        del tmpsmooth
+        del tmpsmooth, rms, x, y
         return mod
 
     # -----------------------------------------------------------------------
