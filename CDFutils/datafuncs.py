@@ -286,8 +286,8 @@ class Data1d(Table):
     # -----------------------------------------------------------------------
 
     def fit_gauss(self, bgorder=0, smo=5, gtype='em', usevar=False,
-                  g_init=None, p_init=None, bounds=None, fitrange=None,
-                  verbose=True):
+                  mu0=None, sig0=None, p_init=None, bounds=None,
+                  fitrange=None, verbose=True):
         """
         Fits a Gaussian plus a background to the data.  The background
          is represented by a polynomial of degree bgorder.  The default value,
@@ -306,13 +306,23 @@ class Data1d(Table):
 
         """
         The default model for the background is just a constant
-        Do a sigma clipping to estimate the base level for the initial
-         guess.
+        Do a sigma clipping to estimate the base level from the data
+         (may or may not get used later)
         """
         base, tmp = sigclip(tmpsmooth)
 
+        """ Set up the background polynomial """
+        if p_init is not None:
+            p = models.Polynomial1D(degree=bgorder, c0=p_init[0])
+        else:
+            p = models.Polynomial1D(degree=bgorder, c0=base)
+
         """
-        Get the initial guesses for the Gaussian from the smoothed curve
+        Get the initial guesses for the Gaussian.  These will either come from
+          1. The values passed in the mu0 and sig0 parameters
+          2. The data themselves (if either / both of mu0 and sig0 are None)
+
+        First set the values from the data and then override them if needed
         """
         if gtype == 'abs':
             amp0 = tmpsmooth.min() - base
@@ -327,7 +337,6 @@ class Data1d(Table):
         NOTE: Should probably add bounds
         """
         g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
-        p = models.Polynomial1D(degree=bgorder, c0=base)
         m_init = p + g
 
         """ 
