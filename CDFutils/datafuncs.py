@@ -375,11 +375,17 @@ class Data1d(Table):
             of  (y_data - y_mod)**2 / sigma**2   since weight = 1/sigma
         """
         fit = fitting.LevMarLSQFitter()
+        """ 
+        look into fitinfo, which has an 'additional info' thing which is
+        a dictionary that has as one of its keys param_cov (for covariance)
+        NB: this only works (for now) for LevMar
+        """
         mod = fit(m_init, x, y, weights=1.0/rms)
 
         """ Clean up and return best-fit model """
         del tmpsmooth, rms, x, y
         return mod
+        # return mod, fit.fit_info['param_cov']
 
     # -----------------------------------------------------------------------
 
