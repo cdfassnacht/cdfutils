@@ -384,8 +384,8 @@ class Data1d(Table):
 
         """ Clean up and return best-fit model """
         del tmpsmooth, rms, x, y
-        return mod
-        # return mod, fit.fit_info['param_cov']
+        #return mod
+        return mod, fit.fit_info['param_cov']
 
     # -----------------------------------------------------------------------
 
