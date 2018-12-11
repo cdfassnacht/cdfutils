@@ -338,6 +338,14 @@ class Data1d(Table):
         """
         g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
         m_init = p + g
+        if verbose:
+            print('')
+            print('Initial model')
+            print('-------------')
+            print(m_init)
+            print('')
+            print('-------------------------------------------')
+            print('')
 
         """ 
         If variance-weighted fitting is requested, make sure that there
