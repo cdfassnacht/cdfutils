@@ -390,10 +390,16 @@ class Data1d(Table):
         """
         mod = fit(m_init, x, y, weights=1.0/rms)
 
-        """ Clean up and return best-fit model """
+        """
+        Clean up and return best-fit model
+        Also return the 'fitinfo' dictionary.  This dictionary contains
+         (among other things):
+          'param_cov' - covariance matrix for the parameters
+          'ier'       - integer indicating fit quality: 1, 2, 3, 4 are
+                        successful fits
+        """
         del tmpsmooth, rms, x, y
-        #return mod
-        return mod, fit.fit_info['param_cov']
+        return mod, fit.fit_info
 
     # -----------------------------------------------------------------------
 
