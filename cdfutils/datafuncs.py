@@ -192,8 +192,9 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def fit_poly(self, fitorder, fitrange=None, nsig=3.0, y0=None, doplot=True,
-                 markformat='bo', xlabel='x', ylabel='y', title=None):
+    def fit_poly(self, fitorder, fitrange=None, nsig=3.0, y0=None,
+                 doplot=True, markformat='bo', xlabel='x', ylabel='y',
+                 title=None):
         """
 
         This method is essentially just a pair of calls to numpy's polyfit
@@ -286,7 +287,7 @@ class Data1d(Table):
     # -----------------------------------------------------------------------
 
     def fit_gauss(self, bgorder=0, smo=5, gtype='em', usevar=False,
-                  mu0=None, sig0=None, p_init=None, bounds=None,
+                  amp0=None, mu0=None, sig0=None, poly0=None, bounds=None,
                   fitrange=None, verbose=True):
         """
         Fits a Gaussian plus a background to the data.  The background
@@ -298,6 +299,14 @@ class Data1d(Table):
            * Background polynomial: c0, c1, ...  [up to bgorder]
         """
 
+        """ Set up the background polynomial """
+        if poly0 is not None:
+            """
+            A non-None poly0 is expected to contain the coefficients of
+            the polynomial.  For a polynomial function f that is set up as
+               f = a0 + a1 * x + a2 * x^2 + ...
+            the associated poly0 should be set up to be [a0, a1, a2, ...]
+            """
         """
         Do a temporary smoothing of the data to reduce the effect of noise
          on the initial guesses
