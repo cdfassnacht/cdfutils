@@ -321,8 +321,8 @@ class Data1d(Table):
         base, tmp = sigclip(tmpsmooth)
 
         """ Set up the background polynomial """
-        if p_init is not None:
-            p = models.Polynomial1D(degree=bgorder, c0=p_init[0])
+        if poly0 is not None:
+            p = models.Polynomial1D(degree=bgorder, c0=poly0[0])
         else:
             p = models.Polynomial1D(degree=bgorder, c0=base)
 
