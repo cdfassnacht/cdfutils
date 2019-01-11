@@ -287,8 +287,7 @@ class Data1d(Table):
     # -----------------------------------------------------------------------
 
     def fit_gauss(self, bgorder=0, smo=5, gtype='em', usevar=False,
-                  mod0=None, 
-                  bounds=None, fitrange=None, verbose=True):
+                  mod0=None, bounds=None, fitrange=None, verbose=True):
         """
         Fits a Gaussian plus a background to the data.  The background
          is represented by a polynomial of degree bgorder.  The default value,
@@ -333,6 +332,8 @@ class Data1d(Table):
                 amp0 = tmpsmooth.max() - base
                 mu0 = self.x[np.argmax(tmpsmooth)]
             sig0 = 3.5
+
+            del tmpsmooth
 
             """
             Create the initial-guess model
@@ -402,7 +403,7 @@ class Data1d(Table):
           'ier'       - integer indicating fit quality: 1, 2, 3, 4 are
                         successful fits
         """
-        del tmpsmooth, rms, x, y
+        del rms, x, y
         return mod, fit.fit_info
 
     # -----------------------------------------------------------------------
