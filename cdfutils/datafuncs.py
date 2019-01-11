@@ -287,66 +287,61 @@ class Data1d(Table):
     # -----------------------------------------------------------------------
 
     def fit_gauss(self, bgorder=0, smo=5, gtype='em', usevar=False,
-                  amp0=None, mu0=None, sig0=None, poly0=None, bounds=None,
-                  fitrange=None, verbose=True):
+                  mod0=None, 
+                  bounds=None, fitrange=None, verbose=True):
         """
         Fits a Gaussian plus a background to the data.  The background
          is represented by a polynomial of degree bgorder.  The default value,
          bgorder=0, gives a constant background.
         The data are modeled using the astropy modeling package.  The 
          parameters that are used for the two components are:
-           * Gaussian: amplitude, mean, stddev
            * Background polynomial: c0, c1, ...  [up to bgorder]
+           * Gaussian: amplitude, mean, stddev
         """
 
-        """ Set up the background polynomial """
-        if poly0 is not None:
-            """
-            A non-None poly0 is expected to contain the coefficients of
-            the polynomial.  For a polynomial function f that is set up as
-               f = a0 + a1 * x + a2 * x^2 + ...
-            the associated poly0 should be set up to be [a0, a1, a2, ...]
-            """
         """
-        Do a temporary smoothing of the data to reduce the effect of noise
-         on the initial guesses
+        If there is no input model, then we need to set up a model and
+        give it some input guesses
         """
-        tmpsmooth, junk = self.smooth_boxcar(smo, verbose=False)
-
-        """
-        The default model for the background is just a constant
-        Do a sigma clipping to estimate the base level from the data
-         (may or may not get used later)
-        """
-        base, tmp = sigclip(tmpsmooth)
-
-        """ Set up the background polynomial """
-        if poly0 is not None:
-            p = models.Polynomial1D(degree=bgorder, c0=poly0[0])
+        if mod0 is not None:
+            m_init = mod0
+            
         else:
+            """
+            Do a temporary smoothing of the data to reduce the effect of
+            noise on the initial guesses
+            """
+            tmpsmooth, junk = self.smooth_boxcar(smo, verbose=False)
+
+            """
+            The default model for the background is just a constant
+            Do a sigma clipping to estimate the base level from the data
+            (may or may not get used later)
+            """
+            base, tmp = sigclip(tmpsmooth)
+
+            """ Set up the background polynomial """
             p = models.Polynomial1D(degree=bgorder, c0=base)
 
-        """
-        Get the initial guesses for the Gaussian.  These will either come from
-          1. The values passed in the mu0 and sig0 parameters
-          2. The data themselves (if either / both of mu0 and sig0 are None)
+            """
+            Get the initial guesses for the Gaussian.
+            """
+            if gtype == 'abs':
+                amp0 = tmpsmooth.min() - base
+                mu0 = self.x[np.argmin(tmpsmooth)]
+            else:
+                amp0 = tmpsmooth.max() - base
+                mu0 = self.x[np.argmax(tmpsmooth)]
+            sig0 = 3.5
 
-        First set the values from the data and then override them if needed
-        """
-        if gtype == 'abs':
-            amp0 = tmpsmooth.min() - base
-            mu0 = self.x[np.argmin(tmpsmooth)]
-        else:
-            amp0 = tmpsmooth.max() - base
-            mu0 = self.x[np.argmax(tmpsmooth)]
-        sig0 = 3.5
+            """
+            Create the initial-guess model
+            NOTE: Should probably add bounds
+            """
+            g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
+            m_init = p + g
 
-        """
-        Create the initial-guess model
-        NOTE: Should probably add bounds
-        """
-        g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
-        m_init = p + g
+        """ Summarize the initial guess """
         if verbose:
             print('')
             print('Initial model')
