@@ -192,7 +192,7 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
-    def fit_poly(self, fitorder, fitrange=None, nsig=3.0, y0=None,
+    def fit_poly(self, fitorder, mod0=None, y0=None, fitrange=None, nsig=3.0,
                  doplot=True, markformat='bo', xlabel='x', ylabel='y',
                  title=None):
         """
@@ -220,8 +220,7 @@ class Data1d(Table):
         xbad = self.x.data[badmask]
         dbad = self.y.data[badmask]
 
-        """ Fit a polynomial to the trace """
-
+        """ Limit the range of fitted points, if requested """
         if fitrange is None:
             xpoly = xgood
             dpoly = dgood
@@ -230,6 +229,7 @@ class Data1d(Table):
             xpoly = xgood[fitmask]
             dpoly = dgood[fitmask]
 
+        """ Fit a polynomial to the trace """
         if fitorder > -1:
             dpoly = np.polyfit(xpoly, dpoly, fitorder)
         elif y0 is not None:
@@ -255,7 +255,11 @@ class Data1d(Table):
             plt.ylabel(ylabel)
             plt.title(title)
 
-            """ Show the value from the compressed spatial profile """
+            """
+            Show an input constant value (e.g., the mean y value)
+            This input value, if it is passed to the method, would have been
+             generated before calling the function
+            """
             if y0 is not None:
                 plt.axhline(y0, color='k', linestyle='--')
 
