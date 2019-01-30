@@ -3,7 +3,7 @@ A collection of fairly generic code for handling data
 """
 
 import numpy as np
-from scipy import optimize
+from scipy import interpolate, optimize
 from scipy.ndimage import filters
 from matplotlib import pyplot as plt
 from astropy.table import Table
@@ -156,6 +156,36 @@ class Data1d(Table):
             self.var = self[self.colnames[2]]
         else:
             self.var = None
+
+    # -----------------------------------------------------------------------
+
+    def resamp(self, xout=None, verbose=True):
+        """
+        Resample the data vector (y) onto a new spacing in x.
+        There are two possibilities for the output x vector that sets where
+         the interpolation happens.  They are:
+         1. xout = None [default]
+            A linearized set of spacings between the minimum and maximum
+            values in the input x vector
+         2. xout is set to an array
+            A user-defined x array that has been passed through the xout
+            parameter
+        """
+
+        if xout is None:
+            x0 = self.x[0]
+            x1 = self.x.max()
+            xout = np.linspace(x0, x1, self.x.size)
+
+        ymod = interpolate.splrep(self.x, self.y)
+        yout = interpolate.splev(xout, ymod)
+
+        """ Return the resampled vectors """
+        if verbose:
+            print('resample: replacing input spectrum with resampled'
+                  ' version')
+            print('resample: for now not resampling the variance')
+        return xout, yout
 
     # -----------------------------------------------------------------------
 
