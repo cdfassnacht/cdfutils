@@ -178,10 +178,12 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
     Required Inputs:
       radec    - The desired (RA, Dec) pair to be put into the CRVAL
                   keywords.
-                  NOTE: This should be in the SkyCoord format defined in
-                   astropy.coordinates.  To convert a "normal" pair of
-                   numbers / sexigesimal strings to SkyCoord format, use
-                   the radec_to_skycoord method from coords.py in CDFutils
+                 This can be in one of two forms:
+                  1. A (RA, Dec) pair as either:
+                     a. a two-element numpy array
+                     b. a two-element tuple
+                     c. a two-element list
+                  2. a SkyCoord object, as defined in astropy.coordinates
       pixscale - Desired pixel scale in arcsec/pix
       nx       - image size along the x-axis --or-- if the image is square
                    (indicated by ny=None) then this is also the y-axis size
@@ -193,6 +195,22 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
 
     """
 
+    """
+    Convert the input (ra, dec) pair to a SkyCoord object if it is not in
+    this format already
+    """
+    if isinstance(radec, np.ndarray) or isinstance(radec, tuple) or \
+            isinstance(radec, list):
+        inradec = radec_to_skycoord(radec[0], radec[1])
+    elif isinstance(radec, SkyCoord):
+        inradec = radec
+    else:
+        print('')
+        print('ERROR: radec needs to either be a two-element array, list'
+              ' or tuple, or')
+        print(' a SkyCoord object')
+        raise ValueError
+
     """ Create a blank 2d WCS container """
     w = wcs.WCS(naxis=2)
 
@@ -203,10 +221,10 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
     else:
         cp2 = ny / 2.
 
-    """ Fill the WCS header in with appropriate values and save it """
+    """ Fill the WCS header with appropriate values and save it """
     px = pixscale / 3600.
     w.wcs.crpix = [cp1, cp2]
-    w.wcs.crval = [radec.ra.degree, radec.dec.degree]
+    w.wcs.crval = [inradec.ra.degree, inradec.dec.degree]
     w.wcs.cdelt = [(-1.*px), px]
     w.wcs.ctype = ['RA---TAN', 'DEC--TAN']
     w.wcs.equinox = 2000.
