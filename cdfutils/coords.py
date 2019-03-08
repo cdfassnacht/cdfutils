@@ -44,7 +44,6 @@ class fileWCS(object):
 
         """ Initialize some variables """
         self.wcsinfo = None
-        self.found_wcs = False
         self.radec = None
         self.pixscale = None
         self.impa = None
@@ -55,7 +54,7 @@ class fileWCS(object):
         except:
             if verbose:
                 print('No WCS information in image header')
-            self.found_wcs = False
+            self.wcsinfo = None
             raise KeyError
 
         """
@@ -83,7 +82,7 @@ class fileWCS(object):
             if verbose:
                 print('No valid WCS information in image header')
                 print(' CTYPE keys are not RA/DEC')
-            self.found_wcs = False
+            self.wcsinfo = None
             raise KeyError
 
         """ Get the RA and Dec of the center of the image """
@@ -97,7 +96,6 @@ class fileWCS(object):
                                        imcentradec[0, decax])
 
         """ Calculate the pixel scale and image PA (E of N) """
-        self.found_wcs = True
         w = self.wcsinfo.wcs
         rad2deg = 180. / pi
         if imwcs.has_cd():
@@ -115,11 +113,11 @@ class fileWCS(object):
         elif isinstance(imwcs.cdelt, np.ndarray):
             self.pixscale = abs(w.cdelt[raax]) * 3600.
         else:
-            print 'Warning: no WCS info in header'
-            self.found_wcs = False
+            print('Warning: no WCS info in header')
+            self.wcsinfo = None
 
         """ Report results if desired """
-        if self.found_wcs and verbose:
+        if self.wcsinfo is not None and verbose:
             print('')
             print('Rough WCS info')
             print('--------------------------------------------------')
