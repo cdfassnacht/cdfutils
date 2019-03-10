@@ -344,6 +344,7 @@ def matrix_to_rot(matrix, raax=0, decax=1, verbose=True):
     """
 
     crota2 = atan(cdsgn * matrix[raax, decax] / matrix[decax, decax])
+    crota2 *= 180. / pi
 
     return crota2
 
