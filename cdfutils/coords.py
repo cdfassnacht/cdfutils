@@ -102,16 +102,18 @@ class fileWCS(object):
             if verbose:
                 print('Using CD matrix to determine pixel scale')
             cdelt1, cdelt2, crot = cdmatrix_to_rscale(w.cd, raax, decax)
-            self.pixscale = 1800. * (abs(cdelt1) + abs(cdelt2))  # 3600./2.
+            self.pixscale = [3600. * abs(cdelt1), 3600. * abs(cdelt2)]
             self.impa = crot * rad2deg
         elif imwcs.has_pc():
             if verbose:
                 print('Using CDELT to determine pixel scale')
-            self.pixscale = 1800. * (abs(w.cdelt[raax]) + abs(w.cdelt[decax]))
+            self.pixscale = [3600. * abs(w.cdelt[raax]), 
+                                         3600. * abs(w.cdelt[decax])]
             self.impa = atan(-1. * w.pc[raax, decax] /
                               w.pc[decax, decax]) * rad2deg
         elif isinstance(imwcs.cdelt, np.ndarray):
-            self.pixscale = abs(w.cdelt[raax]) * 3600.
+            self.pixscale = [abs(w.cdelt[raax]) * 3600.,
+                             abs(w.cdelt[decax]) * 3600.]
         else:
             print('Warning: no WCS info in header')
             self.wcsinfo = None
@@ -121,9 +123,10 @@ class fileWCS(object):
             print('')
             print('Rough WCS info')
             print('--------------------------------------------------')
-            print('Pixel scale: %7.3f arcsec/pix' % self.pixscale)
+            print('Pixel scale: %7.3f arcsec/pix' % self.pixscale[0])
             print('Instrument FOV (arcsec): %7.1f %7.1f' %
-                  (self.pixscale * hdr[rakey], self.pixscale * hdr[deckey]))
+                  (self.pixscale[0] * hdr[rakey],
+                   self.pixscale[1] * hdr[deckey]))
             print('Image position angle (E of N): %+7.2f' % self.impa)
 
 
@@ -219,11 +222,17 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
     else:
         cp2 = ny / 2.
 
+    """ Make the pixel scale into a two-element quantity """
+    tmppix = np.atleast_1d(pixscale)
+    if tmppix.size < 2:
+        px = np.array([pixscale/3600., pixscale/3600.])
+    else:
+        px = tmppix / 3600.
+
     """ Fill the WCS header with appropriate values and save it """
-    px = pixscale / 3600.
     w.wcs.crpix = [cp1, cp2]
     w.wcs.crval = [inradec.ra.degree, inradec.dec.degree]
-    w.wcs.cdelt = [(-1.*px), px]
+    w.wcs.cdelt = [(-1.*px[0]), px[1]]
     w.wcs.ctype = ['RA---TAN', 'DEC--TAN']
     w.wcs.equinox = 2000.
 
@@ -294,6 +303,54 @@ def rscale_to_cdmatrix(pixscale, rot, pixscale2=0.0, verbose=True):
 # -----------------------------------------------------------------------
 
 
+def matrix_to_rot(matrix, raax=0, decax=1, verbose=True):
+    """
+
+    Converts a PC or CD matrix into a rotation
+
+    Inputs:
+       matrix  - a CD or PC matrix
+       raax    - coordinate axis corresponding to RA
+       decax   - coordinate axis corresponding to Dec
+       verbose - report progress?  Default is True
+
+    """
+
+    """
+    Find the determinant, which sets the sign used in the calculation
+    Note that the matrix typically encodes a left-handed coordinate system,
+    since RA increases going to the left.
+    """
+
+    if np.linalg.det(matrix) < 0:
+        cdsgn = -1
+    else:
+        cdsgn = 1
+        if verbose:
+            print('  WARNING: matrix_to rot')
+            print('    Astrometry is for a right-handed coordinate system.')
+
+    """
+    Now convert the PCn_m or CDn_m headers into a rotation.
+    Use the following (under the default assumption of axis assignments),
+    which is taken from a fits WCS document (fitswcs_draft.pdf) by
+    Hanisch and Wells [Look for a published version!]:
+      sign(CDELT1*CDELT2) = sign(CD1_1 * CD2_2 - CD1_2 * CD2_1)
+         This is determined as cdsgn above
+      CROTA2 = arctan(sign * CD1_2 / CD2_2)
+
+    NOTE: CROTA2 is deprecated as a fits keyword, but it is the value of
+     the image PA
+    """
+
+    crota2 = atan(cdsgn * matrix[raax, decax] / matrix[decax, decax])
+
+    return crota2
+
+
+# -----------------------------------------------------------------------
+
+
 def cdmatrix_to_rscale(cdmatrix, raax=0, decax=1, verbose=True):
     """
     Converts a CD matrix from a fits header to pixel scales and rotations.
@@ -318,16 +375,13 @@ def cdmatrix_to_rscale(cdmatrix, raax=0, decax=1, verbose=True):
       verbose  - set to True (the default) for verbose output
     """
 
-    """ Set up """
-    from numpy import linalg
-
     """
     Find the determinant, which sets the sign used in the calculation
     Note that the CD matrix typically encodes a left-handed coordinate system,
     since RA increases going to the left.
     """
 
-    if linalg.det(cdmatrix) < 0:
+    if np.linalg.det(cdmatrix) < 0:
         cdsgn = -1
     else:
         cdsgn = 1
