@@ -52,7 +52,7 @@ def sigclip(indata, nsig=3., mask=None, verbose=False):
     mu = d.mean()
     sig = d.std()
     mu0 = d.mean()
-    sig0 = d.mean()
+    sig0 = d.std()
     if verbose:
         print ''
         print 'npix = %11d. mean = %f. sigma = %f' % (size, mu, sig)
