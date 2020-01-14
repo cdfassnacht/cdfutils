@@ -387,8 +387,8 @@ def cdmatrix_to_rscale(cdmatrix, raax=0, decax=1, verbose=True):
     else:
         cdsgn = 1
         if verbose:
-            print "  WARNING: cdmatrix_to rscale"
-            print "    Astrometry is for a right-handed coordinate system."
+            print('  WARNING: cdmatrix_to rscale')
+            print('    Astrometry is for a right-handed coordinate system.')
 
     """
     Now convert CDn_m headers into pixel scales, expresess as CDELTn values.

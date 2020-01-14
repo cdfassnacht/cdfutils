@@ -42,8 +42,8 @@ def sigclip(indata, nsig=3., mask=None, verbose=False):
     """ Report the number of valid data points """
     size = data[np.isfinite(data)].size
     if verbose:
-        print " sigma_clip: Full size of data       = %d" % data.size
-        print " sigma_clip: Number of finite values = %d" % size
+        print(' sigma_clip: Full size of data       = %d' % data.size)
+        print(' sigma_clip: Number of finite values = %d' % size)
 
     """
     Reject the non-finite data points and compute the initial values
@@ -54,8 +54,8 @@ def sigclip(indata, nsig=3., mask=None, verbose=False):
     mu0 = d.mean()
     sig0 = d.std()
     if verbose:
-        print ''
-        print 'npix = %11d. mean = %f. sigma = %f' % (size, mu, sig)
+        print('')
+        print('npix = %11d. mean = %f. sigma = %f' % (size, mu, sig))
 
     """ Iterate until convergence """
     delta = 1
@@ -69,15 +69,15 @@ def sigclip(indata, nsig=3., mask=None, verbose=False):
         mu = d.mean()
         sig = d.std()
         if verbose:
-            print 'npix = %11d. mean = %f. sigma = %f' % (size, mu, sig)
+            print('npix = %11d. mean = %f. sigma = %f' % (size, mu, sig))
         delta = size-d.size
 
     """ Error handling """
     if clipError:
-        print ''
-        print 'ERROR: sigma clipping failed, perhaps with rms=0.'
-        print 'Setting mu and sig to their original, unclipped, values'
-        print ''
+        print('')
+        print('ERROR: sigma clipping failed, perhaps with rms=0.')
+        print('Setting mu and sig to their original, unclipped, values')
+        print('')
         mu = mu0
         sig = sig0
 
@@ -315,7 +315,7 @@ class Data1d(Table):
         """
         Return the parameters produced by the fit and the fitted function
         """
-        print dpoly
+        print(dpoly)
         return dpoly, fity
 
     # -----------------------------------------------------------------------
@@ -584,12 +584,12 @@ class Data1d(Table):
         """
         if init is not None:
             if len(init) != nparam:
-                print ''
+                print('')
                 print('ERROR: locate_trace -- init parameter must have'
                       'length %d' % nparam)
                 print('  (since ngauss=%d ==> nparam= 3*%d +1)' %
                       (ngauss, ngauss))
-                print ''
+                print('')
                 return np.nan
             for j in range(nparam):
                 if init[j] > -998.:
@@ -606,12 +606,12 @@ class Data1d(Table):
         else:
             fixvec = np.atleast_1d(fix)
             if fixvec.size != nparam:
-                print ''
+                print('')
                 print('ERROR: locate_trace - fix parameter must have length %d'
                       % nparam)
-                print '  (since ngauss=%d ==> nparam= 3*%d +1)' % \
-                    (ngauss, ngauss)
-                print ''
+                print('  (since ngauss=%d ==> nparam= 3*%d +1)' % 
+                      (ngauss, ngauss))
+                print('')
                 return np.nan
             fixstr[fixvec == 1] = 'Yes'
         fitmask = fixvec == 0
@@ -632,14 +632,14 @@ class Data1d(Table):
 
         """ Give results """
         if(verbose):
-            print ""
-            print "Profile fit results"
-            print "-------------------"
-            print '                                        Held'
-            print 'Parameter          Init Value  fixed? Final Value'
-            print '--------------    ----------  ------ -----------'
-            print "background         %9.3f     %3s     %9.3f"      \
-                % (p_init[0], fixstr[0], p_out[0])
+            print('')
+            print('Profile fit results')
+            print('-------------------')
+            print('                                        Held')
+            print('Parameter          Init Value  fixed? Final Value')
+            print('--------------    ----------  ------ -----------')
+            print('background         %9.3f     %3s     %9.3f'
+                  % (p_init[0], fixstr[0], p_out[0]))
             for i in range(ngauss):
                 ind = 3 * i + 1
                 j = i + 1
@@ -647,12 +647,12 @@ class Data1d(Table):
                     mustr = 'mu_1'
                 else:
                     mustr = 'offset_%d' % j
-                print "%-9s          %9.3f     %3s     %9.3f" \
-                    % (mustr, p_init[ind], fixstr[ind], p_out[ind])
-                print "sigma_%d            %9.3f    %3s    %9.3f" \
-                    % (j, p_init[ind+1], fixstr[ind+1], p_out[ind+1])
-                print "amp_%d              %9.3f    %3s    %9.3f" \
-                    % (j, p_init[ind+2], fixstr[ind+2], p_out[ind+2])
-            print ""
+                print('%-9s          %9.3f     %3s     %9.3f'
+                      % (mustr, p_init[ind], fixstr[ind], p_out[ind]))
+                print('sigma_%d            %9.3f    %3s    %9.3f'
+                      % (j, p_init[ind+1], fixstr[ind+1], p_out[ind+1]))
+                print('amp_%d              %9.3f    %3s    %9.3f'
+                      % (j, p_init[ind+2], fixstr[ind+2], p_out[ind+2]))
+            print('')
 
         return p_out
