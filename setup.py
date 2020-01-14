@@ -9,6 +9,7 @@ for scheme in INSTALL_SCHEMES.values():
 
 
 from imp import find_module
+#from importlib import find_module
 try:
     find_module('numpy')
 except:

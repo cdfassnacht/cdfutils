@@ -1,2 +1,2 @@
-import datafuncs
-import coords
+from . import datafuncs
+from . import coords
