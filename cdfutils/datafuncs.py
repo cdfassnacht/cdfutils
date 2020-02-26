@@ -320,6 +320,91 @@ class Data1d(Table):
 
     # -----------------------------------------------------------------------
 
+    def fit_mod(self, mod0, usevar=False, fitrange=None, verbose=True):
+        """
+
+        Fits a pre-defined model (given by mod0) to the data.  The model
+         must have been set by some other method before calling this function.
+
+        Required inputs:
+         mod0     - The input model, in the form of an astropy.modeling object
+
+        Optional inputs:
+         usevar   - Use the variance array to define the uncertainties to be
+                     used in the fitting.  If set to False (the default) then
+                     uniform weighting is used.
+        fitrange - x-axis range to use for the fitting.  If fitrange is set
+                    to None (the default), then the entire data set is used
+                    to constrain the model
+        """
+
+        """ Summarize the initial guess """
+        if verbose:
+            print('')
+            print('Initial model')
+            print('-------------')
+            print(mod0)
+            print('')
+            print('-------------------------------------------')
+            print('')
+
+        """ 
+        If variance-weighted fitting is requested, make sure that there
+        is a variance vector
+        """
+        if usevar:
+            if self.var is None:
+                raise KeyError('*** ERROR:  fit_mod\n'
+                               'Fitting requested variance weighting but'
+                               ' no variance array found.')
+            else:
+                rms0 = np.sqrt(self.var)
+        else:
+            rms0 = np.ones(self.x.size)
+               
+                
+        """ Set the range over which to fit the data """
+        if fitrange is not None:
+            mask = (self.x > fitrange[0]) & (self.x < fitrange[1])
+            x = self.x[mask]
+            y = self.y[mask]
+            rms = rms0[mask]
+        else:
+            x = self.x.copy()
+            y = self.y.copy()
+            rms = rms0
+
+        """
+        Do the fitting.
+        NOTE: The 'weights' for the fitter, if requested, are 1/RMS and NOT
+          1/var because that is what the astropy fitters expect.  
+          This must be because their figure of merit is set to
+            (y_data - y_mod)*weight
+          which is later squared somewhere, giving a real figure of merit
+            of  (y_data - y_mod)**2 / sigma**2   since weight = 1/sigma
+        """
+        fit = fitting.LevMarLSQFitter()
+        
+        """ 
+        look into fitinfo, which has an 'additional info' thing which is
+        a dictionary that has as one of its keys param_cov (for covariance)
+        NB: this only works (for now) for LevMar
+        """
+        mod = fit(mod0, x, y, weights=1.0/rms)
+
+        """
+        Clean up and return best-fit model
+        Also return the 'fitinfo' dictionary.  This dictionary contains
+         (among other things):
+          'param_cov' - covariance matrix for the parameters
+          'ier'       - integer indicating fit quality: 1, 2, 3, 4 are
+                        successful fits
+        """
+        del rms, x, y
+        return mod, fit.fit_info
+
+    # -----------------------------------------------------------------------
+
     def fit_gauss(self, bgorder=0, smo=5, gtype='em', usevar=False,
                   mod0=None, bounds=None, fitrange=None, verbose=True):
         """
@@ -376,69 +461,9 @@ class Data1d(Table):
             g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
             m_init = p + g
 
-        """ Summarize the initial guess """
-        if verbose:
-            print('')
-            print('Initial model')
-            print('-------------')
-            print(m_init)
-            print('')
-            print('-------------------------------------------')
-            print('')
-
-        """ 
-        If variance-weighted fitting is requested, make sure that there
-        is a variance vector
-        """
-        if usevar:
-            if self.var is None:
-                raise KeyError('*** ERROR:  fit_gauss\n'
-                               'Fitting requested variance weighting but'
-                               ' no variance array found.')
-            else:
-                rms0 = np.sqrt(self.var)
-        else:
-            rms0 = np.ones(self.x.size)
-               
-                
-        """ Set the range over which to fit the data """
-        if fitrange is not None:
-            mask = (self.x > fitrange[0]) & (self.x < fitrange[1])
-            x = self.x[mask]
-            y = self.y[mask]
-            rms = rms0[mask]
-        else:
-            x = self.x.copy()
-            y = self.y.copy()
-            rms = rms0
-
-        """
-        Do the fitting.
-        NOTE: The 'weights' for the fitter, if requested, are 1/RMS and NOT
-          1/var because that is what the astropy fitters expect.  
-          This must be because their figure of merit is set to
-            (y_data - y_mod)*weight
-          which is later squared somewhere, giving a real figure of merit
-            of  (y_data - y_mod)**2 / sigma**2   since weight = 1/sigma
-        """
-        fit = fitting.LevMarLSQFitter()
-        """ 
-        look into fitinfo, which has an 'additional info' thing which is
-        a dictionary that has as one of its keys param_cov (for covariance)
-        NB: this only works (for now) for LevMar
-        """
-        mod = fit(m_init, x, y, weights=1.0/rms)
-
-        """
-        Clean up and return best-fit model
-        Also return the 'fitinfo' dictionary.  This dictionary contains
-         (among other things):
-          'param_cov' - covariance matrix for the parameters
-          'ier'       - integer indicating fit quality: 1, 2, 3, 4 are
-                        successful fits
-        """
-        del rms, x, y
-        return mod, fit.fit_info
+        mod, fit_info = self.fit_mod(m_init, usevar=usevar,
+                                     fitrange=fitrange)
+        return mod, fit_info
 
     # -----------------------------------------------------------------------
 
