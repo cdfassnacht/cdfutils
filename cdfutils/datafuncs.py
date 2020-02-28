@@ -461,8 +461,8 @@ class Data1d(Table):
             g = models.Gaussian1D(amplitude=amp0, mean=mu0, stddev=sig0)
             m_init = p + g
 
-        mod, fit_info = self.fit_mod(m_init, usevar=usevar,
-                                     fitrange=fitrange)
+        mod, fit_info = self.fit_mod(m_init, usevar=usevar, fitrange=fitrange,
+                                     verbose=verbose)
         return mod, fit_info
 
     # -----------------------------------------------------------------------
