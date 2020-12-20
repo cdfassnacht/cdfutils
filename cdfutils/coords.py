@@ -165,7 +165,7 @@ def radec_to_skycoord(ra, dec):
     decfmt = u.deg
 
     """ Do the conversion """
-    radec = SkyCoord(ra, dec, unit=(rafmt, decfmt))
+    radec = SkyCoord(ra, dec, unit=(rafmt, decfmt), frame='fk5')
     return radec
 
 # -----------------------------------------------------------------------
@@ -206,11 +206,9 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
     elif isinstance(radec, SkyCoord):
         inradec = radec
     else:
-        print('')
-        print('ERROR: radec needs to either be a two-element array, list'
-              ' or tuple, or')
-        print(' a SkyCoord object')
-        raise ValueError
+        msg = '\nERROR: radec needs to either be a two-element array, list '
+        msg += ' or tuple, or\n a SkyCoord object'
+        raise ValueError(msg)
 
     """ Create a blank 2d WCS container """
     w = wcs.WCS(naxis=2)
