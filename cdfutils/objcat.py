@@ -2,8 +2,7 @@
 objcat.py
 
 A library containing functions that are useful for working with catalogs
-of objects.  These will primarily be produced by SExtractor, but do not
-necessarily have to be.
+of objects.
 
 """
 
@@ -11,6 +10,7 @@ import os, sys
 import numpy as np
 from math import pi, fabs
 from matplotlib import pyplot as plt
+
 import astropy
 from astropy import units as u
 from astropy.io import ascii
@@ -23,8 +23,9 @@ if astropy.__version__[:3] == '0.3':
    from astropy.coordinates import ICRS as SkyCoord
 else:
    from astropy.coordinates import SkyCoord
+   
 from specim.imfuncs import image as imf
-from astrom_simple import select_good_ast
+# from astrom_simple import select_good_ast  ## The functionality in select_good_ast needs to be ported somewhere else
 
 pyversion = sys.version_info.major
 
@@ -1123,7 +1124,7 @@ class ObjCat(Table):
       Select the astrometric catalog objects that fall within the fits file FOV
       (at least with its current WCS)
       """
-      raa,deca,xa,ya,astmask = select_good_ast(astcat,hdr,racol,deccol,edgedist)
+      # raa,deca,xa,ya,astmask = select_good_ast(astcat,hdr,racol,deccol,edgedist)
       if verbose:
          print('Found %d astrometric objects within FOV of image' % raa.size)
          
