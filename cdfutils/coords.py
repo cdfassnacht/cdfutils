@@ -107,10 +107,10 @@ class fileWCS(object):
         elif imwcs.has_pc():
             if verbose:
                 print('Using CDELT to determine pixel scale')
-            self.pixscale = [3600. * abs(w.cdelt[raax]), 
-                                         3600. * abs(w.cdelt[decax])]
+            self.pixscale = [3600. * abs(w.cdelt[raax]),
+                             3600. * abs(w.cdelt[decax])]
             self.impa = atan(-1. * w.pc[raax, decax] /
-                              w.pc[decax, decax]) * rad2deg
+                             w.pc[decax, decax]) * rad2deg
         elif isinstance(imwcs.cdelt, np.ndarray):
             self.pixscale = [abs(w.cdelt[raax]) * 3600.,
                              abs(w.cdelt[decax]) * 3600.]
@@ -261,6 +261,39 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
 # -----------------------------------------------------------------------
 
 
+def rot_to_pcmatrix(rot, verbose=True):
+    """
+    Converts an image PA into a PC (rotation) matrix.  Note that the
+    PC matrix encodes a rotation differently than a standard rotation matrix.
+    For a rotation, theta, the matrix is
+
+       PC1_1     PC1_2          cos(theta)    sin(theta)
+                            =
+       PC2_1     PC2_2          -sin(theta)   cos(theta)
+
+    Inputs:
+      rot       - rotation angle, IN DEGREES (North through East)
+    """
+
+    """ Initialize, and convert rotation to radians """
+    pcmatx = np.zeros((2, 2))
+    if verbose:
+        print('')
+        print('Creating a new PC matrix with:')
+        print('  rotation (degrees N->E):    %+7.2f' % rot)
+    rot *= pi / 180.
+
+    """ Set the values """
+    pcmatx[0, 0] = cos(rot)
+    pcmatx[1, 0] = -1.0 * sin(rot)
+    pcmatx[0, 1] = sin(rot)
+    pcmatx[1, 1] = cos(rot)
+
+    return pcmatx
+
+# -----------------------------------------------------------------------
+
+
 def rscale_to_cdmatrix(pixscale, rot, pixscale2=0.0, verbose=True):
     """
     Converts a pixel scale and rotation (in degrees) into a cd matrix,
@@ -284,7 +317,7 @@ def rscale_to_cdmatrix(pixscale, rot, pixscale2=0.0, verbose=True):
         print('Creating a new CD matrix with:')
         print('  pixel scales (arcsec/pix): %7.4f  %7.4f'
               % (pixscale, pixscale2))
-        print('  rotation (degrees N->E):    %+7.2f' % (rot))
+        print('  rotation (degrees N->E):    %+7.2f' % rot)
 
     rot *= pi / 180.
 
@@ -341,7 +374,7 @@ def matrix_to_rot(matrix, raax=0, decax=1, verbose=True):
      the image PA
     """
 
-    crota2 = atan(cdsgn * matrix[raax, decax] / matrix[decax, decax])
+    crota2 = atan2(cdsgn * matrix[raax, decax], matrix[decax, decax])
     crota2 *= 180. / pi
 
     return crota2
@@ -405,7 +438,7 @@ def cdmatrix_to_rscale(cdmatrix, raax=0, decax=1, verbose=True):
 
     cdelt1 = cdsgn * sqrt(cdmatrix[raax, raax]**2 + cdmatrix[raax, decax]**2)
     cdelt2 = sqrt(cdmatrix[decax, raax]**2 + cdmatrix[decax, decax]**2)
-    crota2 = atan(cdsgn * cdmatrix[raax, decax] / cdmatrix[decax, decax])
+    crota2 = matrix_to_rot(cdmatrix, raax, decax, verbose)
 
     """ Return the calculated values """
     return cdelt1, cdelt2, crota2
