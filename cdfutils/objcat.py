@@ -25,6 +25,7 @@ else:
    from astropy.coordinates import SkyCoord
    
 from specim.imfuncs import image as imf
+from . import coords
 # from astrom_simple import select_good_ast  ## The functionality in select_good_ast needs to be ported somewhere else
 
 pyversion = sys.version_info.major
@@ -66,6 +67,7 @@ class ObjCat(Table):
                       ldac     - 
                       csv      -
                       sdssfits - 
+                      sext     -
                       secat    -
                      NOTE: this parameter is not used if incat is a Table
                       rather than the name of an input file
@@ -75,6 +77,8 @@ class ObjCat(Table):
       self.modified = False
 
       """ Set other default values """
+      self.ra = None
+      self.dec = None
       self.radec = None
       self.rafield = None
       self.decfield = None
@@ -130,11 +134,6 @@ class ObjCat(Table):
       if catformat == 'secat':
          try:
             self.data = ascii.read(incat)
-            ncols = len(self.data.colnames)
-            nrows = len(self.data)
-            """ Set the field names """
-            self.rafield  = 'ALPHA_J2000'
-            self.decfield = 'DELTA_J2000'
          except:
             print("  ERROR. Problem in loading file %s" % incat)
             print("  Check to make sure filename matches an existing file.")
@@ -144,6 +143,24 @@ class ObjCat(Table):
             print('')
             read_success = False
 
+         ncols = len(self.data.colnames)
+         nrows = len(self.data)
+         """ Set the field names """
+         self.rafield  = 'ALPHA_J2000'
+         self.decfield = 'DELTA_J2000'
+         
+      elif catformat == 'sext':
+         try:
+            self.data = ascii.read(incat, guess=False, format='sextractor')
+         except:
+            raise ValueError('\nFormat set to "sext" but file is not in '
+                             'SExtractor ascii format\n')
+         ncols = len(self.data.colnames)
+         nrows = len(self.data)
+         """ Set the field names """
+         self.rafield  = 'ALPHA_J2000'
+         self.decfield = 'DELTA_J2000'
+         
       elif catformat == 'asciitab':
          f = open(incat)
          foo = f.readline()
@@ -434,7 +451,7 @@ class ObjCat(Table):
          print('         not found.  Please check the format of your catalog.')
          print('')
 
-   #----------------------------------------------------------------------
+   # ----------------------------------------------------------------------
 
    def read_centpos(self, posfile, verbose=False):
       """
@@ -585,12 +602,12 @@ class ObjCat(Table):
       f = open(outfile,'w')
       f.write('global color=%s\n' % color)
       for i in range(ntot):
-         f.write('fk5;circle(%10.6f,%+10.6f,%.1f")\n' % 
+         f.write('fk5;circle(%.6f,%+.6f,%.1f")\n' % 
                  (radeg[i],decdeg[i],rcirc))
       if plot_high_snr and ngood>0:
          f.write('global color=red\n')
          for i in range(ngood):
-            f.write('fk5;circle(%10.6f,%+10.6f,0.0011)\n' \
+            f.write('fk5;circle(%.6f,%+.6f,0.0011)\n' \
                        %(gradeg[i],gdecdeg[i]))
 
       """ Add labels if requested """
@@ -898,6 +915,9 @@ class ObjCat(Table):
         ddec2    - optional offset in ARCSEC to apply to dec2, if there is a
                    known offset between the catalogs (default=0.0)
       """
+
+      if self.ra is None:
+         self.get_radec()
 
       print('')
       print("Matching catalogs: basic info")
