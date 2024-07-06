@@ -19,11 +19,11 @@ setuptools.setup(
         'Operating System :: OS Independent',
     ],
     # python_requires='>=3.6',
-    install_requires=[
-        'numpy>=1.10',
-        'scipy>=1.1',
-        'astropy>=3.1',
-        'matplotlib>=3.0'
-    ],
+    # install_requires=[
+    #     'numpy>=1.10',
+    #     'scipy>=1.1',
+    #     'astropy>=3.1',
+    #     'matplotlib>=3.0'
+    # ],
     # package_data = {'nirc2' : ['Distorion_maps/*']}
 )
