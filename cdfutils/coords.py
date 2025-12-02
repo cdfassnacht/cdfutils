@@ -25,7 +25,7 @@ class fileWCS(object):
     """
 
     Container for WCS information and some associated variables that are
-    useful for doing calculations on and selection from astromical imaging
+    useful for doing calculations on and selection from astronomical imaging
     data that have been stored in a fits file
     """
 
@@ -264,8 +264,9 @@ def make_header(radec, pixscale, nx, ny=None, rot=None):
 def rot_to_pcmatrix(rot, verbose=True):
     """
     Converts an image PA into a PC (rotation) matrix.  Note that the
-    PC matrix encodes a rotation differently than a standard rotation matrix.
-    For a rotation, theta, the matrix is
+     PC matrix encodes a rotation differently than a standard rotation matrix,
+     since we're rotating _axes_ rather than rotating a vector in a fixed axis.
+    For a rotation theta, the PC matrix is
 
        PC1_1     PC1_2          cos(theta)    sin(theta)
                             =
@@ -349,6 +350,7 @@ def matrix_to_rot(matrix, raax=0, decax=1, verbose=True):
 
     """
     Find the determinant, which sets the sign used in the calculation
+    *** FIX THE FOLLOWING NOTE TO DISTINGUISH CD AND PC ***
     Note that the matrix typically encodes a left-handed coordinate system,
     since RA increases going to the left.
     """
@@ -357,9 +359,6 @@ def matrix_to_rot(matrix, raax=0, decax=1, verbose=True):
         cdsgn = -1
     else:
         cdsgn = 1
-        if verbose:
-            print('  WARNING: matrix_to rot')
-            print('    Astrometry is for a right-handed coordinate system.')
 
     """
     Now convert the PCn_m or CDn_m headers into a rotation.
