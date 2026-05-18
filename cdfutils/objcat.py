@@ -148,9 +148,19 @@ class ObjCat(Table):
             ncols = len(intab.colnames)
             nrows = len(intab.data)
             """ Set the field names """
-            self.rafield = 'ALPHA_J2000'
-            self.decfield = 'DELTA_J2000'
-          
+            if 'ALPHA_J2000' in intab.colnames:
+                self.rafield = 'ALPHA_J2000'
+            elif 'X_WORLD' in intab.colnames:
+                self.rafield = 'X_WORLD'
+            else:
+                raise KeyError('Neither ALPHA_J2000 nor X_WORLD columns found')
+            if 'DELTA_J2000' in intab.colnames:
+                self.decfield = 'DELTA_J2000'
+            elif 'Y_WORLD' in intab.colnames:
+                self.decfield = 'Y_WORLD'
+            else:
+                raise KeyError('Neither DELTA_J2000 nor Y_WORLD columns found')
+
         elif catformat == 'sext':
             try:
                 intab = ascii.read(incat, guess=False, format='sextractor')
@@ -160,9 +170,19 @@ class ObjCat(Table):
             ncols = len(intab.colnames)
             nrows = len(intab)
             """ Set the field names """
-            self.rafield = 'ALPHA_J2000'
-            self.decfield = 'DELTA_J2000'
-          
+            if 'ALPHA_J2000' in intab.colnames:
+                self.rafield = 'ALPHA_J2000'
+            elif 'X_WORLD' in intab.colnames:
+                self.rafield = 'X_WORLD'
+            else:
+                raise KeyError('Neither ALPHA_J2000 nor X_WORLD columns found')
+            if 'DELTA_J2000' in intab.colnames:
+                self.decfield = 'DELTA_J2000'
+            elif 'Y_WORLD' in intab.colnames:
+                self.decfield = 'Y_WORLD'
+            else:
+                raise KeyError('Neither DELTA_J2000 nor Y_WORLD columns found')
+
         elif catformat == 'asciitab':
             f = open(incat)
             foo = f.readline()
@@ -261,9 +281,19 @@ class ObjCat(Table):
             ncols = len(intab.columns)
     
             """ Set the field names """
-            self.rafield = 'ALPHA_J2000'
-            self.decfield = 'DELTA_J2000'
-    
+            if 'ALPHA_J2000' in intab.colnames:
+                self.rafield = 'ALPHA_J2000'
+            elif 'X_WORLD' in intab.colnames:
+                self.rafield = 'X_WORLD'
+            else:
+                raise KeyError('Neither ALPHA_J2000 nor X_WORLD columns found')
+            if 'DELTA_J2000' in intab.colnames:
+                self.decfield = 'DELTA_J2000'
+            elif 'Y_WORLD' in intab.colnames:
+                self.decfield = 'Y_WORLD'
+            else:
+                raise KeyError('Neither DELTA_J2000 nor Y_WORLD columns found')
+
         elif catformat.lower() == 'csv' or read_success == False:
             try:
                 intab = Table.read(incat)

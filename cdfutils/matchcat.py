@@ -17,7 +17,7 @@ Top-level functions
 import numpy as np
 from math import sqrt
 from matplotlib import pyplot as plt
-from cdfutils import coords
+from . import coords
 from .objcat import ObjCat
 
 # -----------------------------------------------------------------------------
