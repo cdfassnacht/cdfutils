@@ -17,6 +17,7 @@ Top-level functions
 import numpy as np
 from math import sqrt
 from matplotlib import pyplot as plt
+from astropy.table import Table
 from . import coords
 from .objcat import ObjCat
 
@@ -424,11 +425,11 @@ def color_mag(cat1, cat2, magcol1, magcol2, lab1='mag1', lab2='mag2',
     if starsonly:
         sm1 = cat1.starmask[cat1.matchmask]
         sm2 = cat2.starmask[cat2.matchmask]
-        mag1 = cat1[sm1][magcol1]
-        mag2 = cat2[sm2][magcol2]
+        mag1 = (Table(cat1))[sm1][magcol1]
+        mag2 = (Table(cat2))[sm2][magcol2]
     else:
-        mag1 = cat1[cat1.matchmask][magcol1]
-        mag2 = cat2[cat2.matchmask][magcol2]
+        mag1 = (Table(cat1))[cat1.matchmask][magcol1]
+        mag2 = (Table(cat2))[cat2.matchmask][magcol2]
     
     """ Get rid of crazy points """
     mask = (mag1 < 35.) & (mag2 < 35.) & (mag1 > 5) & (mag2 > 5)
